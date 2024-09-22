@@ -23,7 +23,6 @@ class BTreeNode{
         int i = this.books.size() - 1;
 
         if (this.isLeaf) {
-            // Comparación basada en "isbn"
             while (i >= 0 && this.books.get(i).getString("isbn").compareTo(book.getString("isbn")) > 0) {
                 i--;
             }
@@ -211,8 +210,8 @@ class BTreeNode{
         return current.books.get(0);
     }
 
-    //Metodo de buscar
-
+    //Metodo de buscar ya no lo estoy usando a ver si sale abajo
+/*
     public boolean searchByName(String name, Map<String, Object> bookData) {
         int idx = -1;
         int low = 0;
@@ -252,23 +251,46 @@ class BTreeNode{
 
         return false;
     }
+*/
 
+    public JSONObject findBookByIsbn(String isbn) {
 
+        for (JSONObject book : books) {
+            if (book.getString("isbn").equals(isbn)) {
+                return book;
+            }
+        }
 
+        if (isLeaf) {
+            return null;
+        }
 
+        int i = 0;
+        while (i < books.size() && isbn.compareTo(books.get(i).getString("isbn")) > 0) {
+            i++;
+        }
 
+        return children.get(i).findBookByIsbn(isbn);
+    }
 }
 
 class BTree{
     BTreeNode root;
     int t;
+    HashMap<String, List<JSONObject>> bookIndexByName;
+
 
     public BTree(){
         this.t = 5;
         this.root = null;
+        this.bookIndexByName = new HashMap<>();
     }
 
     public void insert(JSONObject book) {
+        String name = book.getString("name");
+        bookIndexByName.putIfAbsent(name, new ArrayList<>());
+        bookIndexByName.get(name).add(book);
+
         if (root == null) {
             root = new BTreeNode(true);
             root.books.add(book);
@@ -283,33 +305,76 @@ class BTree{
         }
     }
 
-    public boolean updateBook(String isbn, Map<String, Object> updateData){
-        if(root != null){
-            return root.updateBook(isbn, updateData);
+    public boolean updateBook(String isbn, Map<String, Object> updateData) {
+        if (root != null) {
+            boolean updated = root.updateBook(isbn, updateData);
 
+            if (updated) {
+
+                JSONObject updatedBook = findBookByIsbn(isbn);
+
+                if (updatedBook != null) {
+                    String newName = updatedBook.getString("name");
+
+
+                    List<JSONObject> booksByName = bookIndexByName.get(newName);
+                    if (booksByName != null) {
+                        booksByName.removeIf(book -> book.getString("isbn").equals(isbn));
+                        booksByName.add(updatedBook);
+                    }
+                }
+            }
+
+            return updated;
         }
         return false;
     }
 
-    public void removeBook(String isbn){
-        if(root != null){
-            root.removeBook(isbn);
-        }
 
-        if(root.books.size()==0){
-            if(root.isLeaf){
-                root=null;
-            }else{
-                root = root.children.get(0);
+
+    public void removeBook(String isbn) {
+        if (root != null) {
+            JSONObject bookToRemove = findBookByIsbn(isbn);
+
+            if (bookToRemove != null) {
+                String name = bookToRemove.getString("name");
+                List<JSONObject> booksByName = bookIndexByName.get(name);
+
+                if (booksByName != null) {
+                    booksByName.remove(bookToRemove);
+                    if (booksByName.isEmpty()) {
+                        bookIndexByName.remove(name);
+                    }
+                }
+            }
+
+            root.removeBook(isbn);
+            if (root.books.size() == 0) {
+                if (root.isLeaf) {
+                    root = null;
+                } else {
+                    root = root.children.get(0);
+                }
             }
         }
     }
 
-    public boolean searchByName(String name, Map<String, Object> bookData){
-        if(root != null){
-            return root.searchByName(name, bookData);
+
+
+    public JSONObject searchByName(String name) {
+        List<JSONObject> books = bookIndexByName.get(name);
+        if (books != null && !books.isEmpty()) {
+            return books.get(0);
         }
-        return false;
+        return null;
+    }
+
+
+    public JSONObject findBookByIsbn(String isbn) {
+        if (root != null) {
+            return root.findBookByIsbn(isbn);
+        }
+        return null;
     }
 
 
@@ -371,62 +436,60 @@ public class Main{
 
     }
 
-    public static void Exit(String file, BTree tree){
+    public static void Exit(String file, BTree tree) {
         String filepath = file;
 
-        try(BufferedReader reader = new BufferedReader(new FileReader(filepath));
-            BufferedWriter writer = new BufferedWriter(new FileWriter("output.txt", true))){
+        try (BufferedReader reader = new BufferedReader(new FileReader(filepath));
+             BufferedWriter writer = new BufferedWriter(new FileWriter("output.txt", true))) {
 
             String line;
 
-            while((line = reader.readLine()) != null){
+            while ((line = reader.readLine()) != null) {
                 int separatorIndex = line.indexOf(';');
-                if(separatorIndex == -1){
-                    System.err.println("Formato incorrecto" + line);
+                if (separatorIndex == -1) {
+                    System.err.println("Formato incorrecto: " + line);
                     continue;
                 }
 
                 String operation = line.substring(0, separatorIndex).trim();
-                String jsonData = line.substring(separatorIndex + 1 ).trim();
+                String jsonData = line.substring(separatorIndex + 1).trim();
 
-                try{
+                try {
                     JSONObject jsonObject = new JSONObject(jsonData);
                     String name = jsonObject.getString("name");
 
+                    JSONObject foundBook = tree.searchByName(name);
 
-                    Map<String, Object> foundBookData = new HashMap<>();
-                    boolean book = tree.searchByName(name, foundBookData);
-                    if(book){
+                    if (foundBook != null) {
                         String formattedOutput = String.format(
                                 "{\"isbn\":\"%s\",\"name\":\"%s\",\"author\":\"%s\",\"price\":\"%s\",\"quantity\":\"%s\"}",
-                                foundBookData.get("isbn"),
-                                foundBookData.get("name"),
-                                foundBookData.get("author"),
-                                foundBookData.get("price"),
-                                foundBookData.get("quantity")
+                                foundBook.getString("isbn"),
+                                foundBook.getString("name"),
+                                foundBook.getString("author"),
+                                foundBook.getString("price"),
+                                foundBook.getString("quantity")
                         );
                         writer.write(formattedOutput);
                         writer.newLine();
-                    }else{
+                    } else {
                         System.out.println("Libro no encontrado: " + name);
                     }
 
-                }catch (Exception e){
+                } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
 
-
-        }catch (IOException e){
+        } catch (IOException e) {
             e.printStackTrace();
         }
-
     }
 
 
+
     public static void main(String[] args){
-        String file = "100Klab01_books.csv";
-        String file2 = "100Klab01_search.csv";
+        String file = "lab01_books.csv";
+        String file2 = "lab01_searchs.csv";
         BTree tree = new BTree();
         //Insertador, actualizando y eliminando libris en el arbol
         ReaderCSV(file, tree);
