@@ -1,40 +1,45 @@
 package org.example;
+
 import org.json.JSONObject;
 import java.util.HashMap;
-import java.util.stream.Collectors;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.PriorityQueue;
 
-class BTreeNode{
+class BTreeNode {
     List<JSONObject> books;
     List<BTreeNode> children;
     boolean isLeaf;
 
-    public BTreeNode(boolean isLeaf){
+    public BTreeNode(boolean isLeaf) {
         this.books = new ArrayList<>();
         this.children = new ArrayList<>();
         this.isLeaf = isLeaf;
     }
 
-    //Metodo de incertar
+    // Metodo de incertar
     public void insertNonFull(JSONObject book) {
+        String isbn = book.getString("isbn");
         int i = this.books.size() - 1;
 
+
         if (this.isLeaf) {
-            while (i >= 0 && this.books.get(i).getString("isbn").compareTo(book.getString("isbn")) > 0) {
+            // Insert book into leaf node
+            while (i >= 0 && this.books.get(i).getString("isbn").compareTo(isbn) > 0) {
                 i--;
             }
             this.books.add(i + 1, book);
         } else {
-            while (i >= 0 && this.books.get(i).getString("isbn").compareTo(book.getString("isbn")) > 0) {
+            // Insert book into non-leaf node
+            while (i >= 0 && this.books.get(i).getString("isbn").compareTo(isbn) > 0) {
                 i--;
             }
 
             if (this.children.get(i + 1).books.size() == 4) {
                 this.splitChild(i + 1, this.children.get(i + 1));
-                if (this.books.get(i + 1).getString("isbn").compareTo(book.getString("isbn")) < 0) {
+                if (this.books.get(i + 1).getString("isbn").compareTo(isbn) < 0) {
                     i++;
                 }
             }
@@ -44,78 +49,95 @@ class BTreeNode{
 
     public void splitChild(int i, BTreeNode y) {
         BTreeNode z = new BTreeNode(y.isLeaf);
-        z.books.addAll(y.books.subList(2, y.books.size()));
-        y.books.subList(2, y.books.size()).clear();
+
+        z.books.addAll(y.books.subList(2, y.books.size()));  // Move last half of the books
+        y.books.subList(2, y.books.size()).clear();  // Remove moved books from original node
 
         if (!y.isLeaf) {
-            z.children.addAll(y.children.subList(2, y.children.size()));
-            y.children.subList(2, y.children.size()).clear();
+            z.children.addAll(y.children.subList(2, y.children.size()));  // Move children if internal node
+            y.children.subList(2, y.children.size()).clear();  // Remove moved children from original node
         }
 
-        this.children.add(i + 1, z);
-        this.books.add(i, y.books.remove(1));
+        this.children.add(i + 1, z);  // Link new node to current node
+        this.books.add(i, y.books.remove(1));  // Move middle book up to the parent node
+
     }
 
-    //Metodo de actualización
-    public int findkey(String isbn){
-        for(int idx = 0; idx < books.size(); idx++){
-            if(books.get(idx) != null && books.get(idx).getString("isbn").compareTo(isbn)== 0)     {
+
+    public int findKey(String isbn) {
+        for (int idx = 0; idx < books.size(); idx++) {
+            String currentIsbn = books.get(idx).getString("isbn");
+            if (currentIsbn.equals(isbn)) {
+                return idx;  // Return the index if the ISBN matches
+            }
+            // If the current ISBN is greater than the one we're searching for, return this index for traversal
+            if (currentIsbn.compareTo(isbn) > 0) {
                 return idx;
             }
         }
-        return books.size();
+        return books.size();  // If not found, return size to continue traversal
     }
 
-    public boolean updateBook(String isbn, Map<String, Object> updateData){
-        int idx = findkey(isbn);
 
-        if(idx < books.size()){
+    public boolean updateBook(String isbn, Map<String, Object> updateData) {
+        int idx = findKey(isbn);
+
+
+        // Check if the book with the given ISBN is present in the current node
+        if (idx < books.size() && books.get(idx).getString("isbn").equals(isbn)) {
             JSONObject book = books.get(idx);
 
-            for(Map.Entry<String, Object> entry : updateData.entrySet()){
+            // Update each field in the book
+            for (Map.Entry<String, Object> entry : updateData.entrySet()) {
                 String key = entry.getKey();
                 Object value = entry.getValue();
                 book.put(key, value);
             }
+
             return true;
         }
 
-        if(isLeaf){
-            if(idx < children.size()){
+        // If not found in current node and it's not a leaf node, search in children
+        if (!isLeaf) {
+
+            if (idx < books.size() && isbn.compareTo(books.get(idx).getString("isbn")) > 0) {
+                idx++;
+            }
+
+            if (idx < children.size()) {
                 return children.get(idx).updateBook(isbn, updateData);
             }
         }
+
         return false;
     }
 
-    //Metodo de eliminacion
-    public void removeBook(String isbn){
 
-        int idx = findkey(isbn);
+    public void removeBook(String isbn) {
+        int idx = findKey(isbn);
 
-        if(idx < books.size() && books.get(idx).getString("isbn").compareTo(isbn) == 0){
-            if(isLeaf){
-                books.remove((idx));
-            }else{
+        if (idx < books.size() && books.get(idx).getString("isbn").compareTo(isbn) == 0) {
+            if (isLeaf) {
+                books.remove(idx);
+            } else {
                 removeFromNonLeaf(idx);
             }
-        }else{
-            if(isLeaf){
+        } else {
+            if (isLeaf) {
                 return;
             }
 
             boolean flag = (idx == books.size());
 
-            if(children.get(idx).books.size() < 2){
+            if (children.get(idx).books.size() < 2) {
                 fill(idx);
             }
 
-            if(flag && idx > books.size()){
-                children.get(idx-1).removeBook(isbn);
-            }else{
+            if (flag && idx > books.size()) {
+                children.get(idx - 1).removeBook(isbn);
+            } else {
                 children.get(idx).removeBook(isbn);
             }
-
         }
     }
 
@@ -140,8 +162,7 @@ class BTreeNode{
             JSONObject pred = getPredecessor(idx);
             books.set(idx, pred);
             children.get(idx).removeBook(pred.getString("isbn"));
-        }
-        else if (children.get(idx + 1).books.size() >= 2) {
+        } else if (children.get(idx + 1).books.size() >= 2) {
             JSONObject succ = getSuccessor(idx);
             books.set(idx, succ);
             children.get(idx + 1).removeBook(succ.getString("isbn"));
@@ -210,86 +231,36 @@ class BTreeNode{
         return current.books.get(0);
     }
 
-    //Metodo de buscar ya no lo estoy usando a ver si sale abajo
-/*
-    public boolean searchByName(String name, Map<String, Object> bookData) {
-        int idx = -1;
-        int low = 0;
-        int high = books.size() - 1;
-
-        while (low <= high) {
-            int mid = (low + high) / 2;
-            String midName = books.get(mid).getString("name");
-
-            if (midName.equals(name)) {
-                idx = mid;
-                break;
-            } else if (midName.compareTo(name) < 0) {
-                low = mid + 1;
-            } else {
-                high = mid - 1;
-            }
-        }
-
-        if (idx >= 0) {
-            JSONObject book = books.get(idx);
-            for (String key : book.keySet()) {
-                bookData.put(key, book.get(key));
-            }
-            return true;
-        }
-
-        if (isLeaf) {
-            return false;
-        }
-
-        for (BTreeNode child : children) {
-            if (child.searchByName(name, bookData)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-*/
-
-    public JSONObject findBookByIsbn(String isbn) {
-
-        for (JSONObject book : books) {
-            if (book.getString("isbn").equals(isbn)) {
-                return book;
-            }
-        }
-
-        if (isLeaf) {
-            return null;
-        }
-
-        int i = 0;
-        while (i < books.size() && isbn.compareTo(books.get(i).getString("isbn")) > 0) {
-            i++;
-        }
-
-        return children.get(i).findBookByIsbn(isbn);
-    }
 }
 
-class BTree{
+class BTree {
     BTreeNode root;
     int t;
-    HashMap<String, List<JSONObject>> bookIndexByName;
+    HashMap<String, JSONObject> bookIndexByName;
+    HashMap<String, JSONObject> bookIndexByIsbn;
 
-
-    public BTree(){
+    public BTree() {
         this.t = 5;
         this.root = null;
         this.bookIndexByName = new HashMap<>();
+        this.bookIndexByIsbn = new HashMap<>();
     }
 
     public void insert(JSONObject book) {
         String name = book.getString("name");
-        bookIndexByName.putIfAbsent(name, new ArrayList<>());
-        bookIndexByName.get(name).add(book);
+        String isbn = book.getString("isbn");
+
+
+        if (bookIndexByName.containsKey(name)) {
+            return;
+        }
+
+        if (bookIndexByIsbn.containsKey(isbn)) {
+            return;
+        }
+
+        bookIndexByName.put(name, book);
+        bookIndexByIsbn.put(isbn, book);
 
         if (root == null) {
             root = new BTreeNode(true);
@@ -303,34 +274,45 @@ class BTree{
             }
             root.insertNonFull(book);
         }
+
     }
 
     public boolean updateBook(String isbn, Map<String, Object> updateData) {
+
         if (root != null) {
+            JSONObject originalBook = findBookByIsbn(isbn);
+            if (originalBook == null) {
+                return false;
+            }
+
+            String oldName = originalBook.getString("name");
+
+            // Update the book in the B-tree node.
             boolean updated = root.updateBook(isbn, updateData);
 
             if (updated) {
-
                 JSONObject updatedBook = findBookByIsbn(isbn);
 
                 if (updatedBook != null) {
                     String newName = updatedBook.getString("name");
 
 
-                    List<JSONObject> booksByName = bookIndexByName.get(newName);
-                    if (booksByName != null) {
-                        booksByName.removeIf(book -> book.getString("isbn").equals(isbn));
-                        booksByName.add(updatedBook);
+                    // If the name has changed, update the bookIndexByName map.
+                    if (!oldName.equals(newName)) {
+                        bookIndexByName.remove(oldName); // Remove old name
+                        bookIndexByName.put(newName, updatedBook); // Insert new name
                     }
+
+                    // Ensure that the bookIndexByIsbn map is still accurate.
+                    bookIndexByIsbn.put(isbn, updatedBook);
+
+                    return true;
                 }
             }
-
-            return updated;
         }
+
         return false;
     }
-
-
 
     public void removeBook(String isbn) {
         if (root != null) {
@@ -338,14 +320,10 @@ class BTree{
 
             if (bookToRemove != null) {
                 String name = bookToRemove.getString("name");
-                List<JSONObject> booksByName = bookIndexByName.get(name);
 
-                if (booksByName != null) {
-                    booksByName.remove(bookToRemove);
-                    if (booksByName.isEmpty()) {
-                        bookIndexByName.remove(name);
-                    }
-                }
+                // Remove the book from both indexes.
+                bookIndexByName.remove(name);
+                bookIndexByIsbn.remove(isbn);
             }
 
             root.removeBook(isbn);
@@ -359,34 +337,22 @@ class BTree{
         }
     }
 
-
-
     public JSONObject searchByName(String name) {
-        List<JSONObject> books = bookIndexByName.get(name);
-        if (books != null && !books.isEmpty()) {
-            return books.get(0);
-        }
-        return null;
+        return bookIndexByName.get(name);
     }
-
 
     public JSONObject findBookByIsbn(String isbn) {
-        if (root != null) {
-            return root.findBookByIsbn(isbn);
-        }
-        return null;
+        return bookIndexByIsbn.get(isbn);
     }
-
-
 }
 
-public class Main{
-    public static void ReaderCSV(String file, BTree tree){
+
+public class Main {
+    public static void ReaderCSV(String file, BTree tree) {
         String filePath = file;
 
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
             String line;
-
 
             while ((line = reader.readLine()) != null) {
 
@@ -399,11 +365,10 @@ public class Main{
                 String operation = line.substring(0, separatorIndex).trim();
                 String jsonData = line.substring(separatorIndex + 1).trim();
 
-
-                try{
+                try {
                     JSONObject jsonObject = new JSONObject(jsonData);
 
-                    switch (operation){
+                    switch (operation) {
                         case "INSERT":
                             tree.insert(jsonObject);
 
@@ -412,7 +377,7 @@ public class Main{
                             String isbn = jsonObject.getString("isbn");
                             Map<String, Object> updateData = jsonObject.toMap();
                             updateData.remove("isbn");
-                            boolean update = tree.updateBook(isbn, updateData);
+                            tree.updateBook(isbn, updateData);
 
                             break;
 
@@ -424,7 +389,7 @@ public class Main{
                             System.err.println("Operación desconocida: " + operation);
                     }
 
-                } catch (Exception e){
+                } catch (Exception e) {
 
                 }
             }
@@ -433,8 +398,8 @@ public class Main{
             e.printStackTrace();
         }
 
-
     }
+
 
     public static void Exit(String file, BTree tree) {
         String filepath = file;
@@ -451,7 +416,6 @@ public class Main{
                     continue;
                 }
 
-                String operation = line.substring(0, separatorIndex).trim();
                 String jsonData = line.substring(separatorIndex + 1).trim();
 
                 try {
@@ -467,12 +431,10 @@ public class Main{
                                 foundBook.getString("name"),
                                 foundBook.getString("author"),
                                 foundBook.getString("price"),
-                                foundBook.getString("quantity")
-                        );
+                                foundBook.getString("quantity"));
+
                         writer.write(formattedOutput);
                         writer.newLine();
-                    } else {
-                        System.out.println("Libro no encontrado: " + name);
                     }
 
                 } catch (Exception e) {
@@ -485,18 +447,14 @@ public class Main{
         }
     }
 
-
-
-    public static void main(String[] args){
-        String file = "lab01_books.csv";
-        String file2 = "lab01_searchs.csv";
+    public static void main(String[] args) {
+        String file = "100Klab01_books.csv";
+        String file2 = "100Klab01_search.csv";
         BTree tree = new BTree();
-        //Insertador, actualizando y eliminando libris en el arbol
+        // Insertador, actualizando y eliminando libros en el arbol
         ReaderCSV(file, tree);
-        //Despues de haber insertado, actulizado y eliminado libros en el arbol
+        // Despues de haber insertado, actulizado y eliminado libros en el arbol
         Exit(file2, tree);
-
-
 
     }
 }
