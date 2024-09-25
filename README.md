@@ -1,121 +1,69 @@
 
-# Documentación de Laboratorio 1: Arboles B, B*, B+
+# Bookstore
 
----
-
-## Descripción del Problema
-
-La librería "Libros y Más" enfrenta un problema con la gestión de su inventario. Con miles de artículos, el sistema actual no es eficiente para realizar búsquedas, actualizaciones, o inserciones, lo que afecta la experiencia del cliente, especialmente en temporadas de alta demanda.
-
-El objetivo de este laboratorio es implementar una estructura de datos eficiente que permita optimizar las operaciones de búsqueda, inserción, actualización y eliminación de registros de inventario, utilizando árboles B, B*, o B+.
-
----
-
-## Requerimientos
-
-Se requiere implementar las siguientes funcionalidades en la estructura de datos:
-
-- **Insertar registro de artículo:** Ingresar un nuevo artículo en el inventario.
-- **Eliminar registro de artículo:** Eliminar un artículo utilizando el ISBN como llave primaria.
-- **Actualizar un registro:** Modificar atributos de un artículo utilizando el ISBN.
-- **Buscar registros por nombre:** Permitir la búsqueda de todos los registros que coincidan con el nombre de un artículo.
-
----
-
-## Implementación
-
-### Árbol B
-
-Se utilizó un Árbol B para representar la estructura de datos del inventario debido a su balanceo automático y su eficiencia en operaciones de búsqueda, inserción y eliminación. Los árboles B son adecuados para manejar grandes cantidades de datos, ya que minimizan el número de accesos al disco durante las operaciones.
-
-- **Nodos internos y hojas:** Los nodos pueden contener múltiples llaves y apuntadores a otros nodos, lo que permite almacenar y organizar los datos de manera eficiente.
-- **División de nodos:** Implementamos la lógica de división de nodos cuando un nodo alcanza su capacidad máxima, garantizando que el árbol se mantenga balanceado.
-- **Búsqueda:** La búsqueda se realiza de manera eficiente dividiendo los datos en cada nivel del árbol hasta encontrar el artículo o determinar que no está presente.
-
-### Operaciones
-
-- **Insertar:** La operación de inserción se realiza buscando la posición correcta en el árbol y, si es necesario, dividiendo nodos para mantener el balance.
-- **Eliminar:** La eliminación de un registro sigue una estrategia de fusión o redistribución de nodos si un nodo cae por debajo de su capacidad mínima.
-- **Actualizar:** Para actualizar un artículo, primero se realiza una búsqueda del ISBN y luego se modifican los atributos especificados.
-- **Buscar por nombre:** La búsqueda por nombre recorre los nodos para encontrar todos los registros que coincidan con el nombre del artículo.
-
----
-
-## Ejemplo de Entrada
-
-```csv
-INSERT; {"isbn":"1234567890","name":"Cien Años de Soledad","author":"Gabriel Garcia Marquez","category":"Ficción","price":"20.00","quantity":"10"}
-INSERT; {"isbn":"0987654321","name":"El Principito","author":"Antoine de Saint-Exupéry","category":"Ficción","price":"15.00","quantity":"5"}
-PATCH; {"isbn":"0987654321","author":"Antoine de Saint-Exupéry","price":"18.00"}
-DELETE; {"isbn":"1234567890"}
-SEARCH; {"name":"Cien Años de Soledad"}
-```
-
-## Ejemplo de Salida
-
-```json
-{
-  "isbn": "1234567890",
-  "name": "Cien Años de Soledad",
-  "author": "Gabriel Garcia Marquez",
-  "category": "Ficción",
-  "price": "20.00",
-  "quantity": "10"
-}
-{
-  "isbn": "0987654321",
-  "name": "El Principito",
-  "author": "Antoine de Saint-Exupéry",
-  "category": "Ficción",
-  "price": "18.00",
-  "quantity": "5"
-}
-```
-
----
-
-## Recomendaciones de Mejora
-
-1. **Uso de índices adicionales:** Para mejorar aún más las búsquedas, se recomienda implementar un índice secundario para búsquedas por nombre, ya que actualmente las búsquedas por nombre recorren todo el árbol.
-2. **Optimización de actualizaciones:** Implementar un sistema de caché podría acelerar las actualizaciones y reducir la carga sobre el sistema de inventario en picos de demanda.
-3. **Pruebas unitarias:** Asegurarse de que cada funcionalidad esté cubierta por pruebas unitarias exhaustivas, incluyendo casos límite como la inserción en nodos llenos y la eliminación de nodos con solo una llave.
-4. **Optimización del tamaño de nodo:** Dependiendo del entorno de producción, ajustar el tamaño de los nodos del árbol puede optimizar el rendimiento del árbol B en sistemas de disco.
-
----
-
-## Archivo README.md
-
-```md
-# Inventario Libros y Más
-
-Este proyecto es una implementación de un sistema de gestión de inventario optimizado utilizando Árboles B, B*, o B+. Permite realizar operaciones de búsqueda, inserción, eliminación y actualización de artículos en el inventario de una librería.
+Este proyecto es una solución de inventario para una librería, desarrollado en **Java** utilizando un **árbol B** como estructura de datos. Los archivos **CSV** se procesan en formato **JSON** para realizar operaciones sobre el inventario, como agregar, actualizar y eliminar libros. El proyecto también permite buscar libros en el árbol y generar un archivo `.txt` con los resultados.
 
 ## Funcionalidades
 
-- Insertar un nuevo artículo en el inventario.
-- Eliminar artículos utilizando el ISBN.
-- Actualizar atributos de un artículo.
-- Buscar artículos por nombre.
+### Clases principales:
 
-## Requisitos
+- **BTreeNode**: Representa un nodo en el árbol B. Cada nodo puede contener múltiples libros (almacenados como objetos JSON) y referencias a nodos hijos.
+  - **Método `insertNonFull(JSONObject book)`**: Inserta un libro en un nodo que aún no está lleno. Si el nodo es una hoja, lo agrega directamente; de lo contrario, recurre a los nodos hijos.
+  - **Método `splitChild(int i, BTreeNode y)`**: Divide un nodo cuando se llena, creando un nuevo nodo y redistribuyendo los libros.
 
-- Java 11 o superior.
-- Archivo de entrada en formato `.csv` con las operaciones de inserción, actualización, eliminación y búsqueda.
+- **BTree**: Estructura principal que gestiona los nodos y permite operaciones de inserción, eliminación, y búsqueda de libros.
+  - **Método `insert(JSONObject book)`**: Inserta un libro en el árbol, manejando el caso en que la raíz se llene y requiera división.
+  - **Método `search(String name)`**: Busca libros por nombre dentro del árbol.
 
-## Uso
+- **Gestión de archivos CSV**: Se utilizan funciones para leer archivos CSV y convertir cada entrada en un objeto JSON. A partir de estas entradas, se realizan operaciones como inserciones o eliminaciones en el árbol B.
 
-1. Ejecutar el programa con el archivo de entrada:
+### Operaciones soportadas:
 
-   ```bash
-   java Main input.csv
+- **Insertar libro**: El sistema lee un archivo CSV que contiene la información de los libros en formato JSON y los inserta en el árbol B.
+- **Eliminar libro**: Se puede eliminar un libro del árbol utilizando su ISBN.
+- **Actualizar libro**: Actualiza los atributos de un libro en función de las instrucciones del archivo CSV.
+- **Buscar libros**: Realiza búsquedas de libros por nombre y genera un archivo `.txt` con los resultados de la búsqueda.
+
+## Ejemplo de uso
+
+1. **Archivo de entrada (CSV)**:
+   ```csv
+   INSERT; {"isbn":"1234567890","name":"Cien Años de Soledad","author":"Gabriel Garcia Marquez","category":"Ficción","price":"20.00","quantity":"10"}
+   INSERT; {"isbn":"0987654321","name":"El Principito","author":"Antoine de Saint-Exupéry","category":"Ficción","price":"15.00","quantity":"5"}
+   DELETE; {"isbn":"1234567890"}
+   SEARCH; {"name":"El Principito"}
    ```
 
-2. El archivo de salida se generará con los resultados de las búsquedas.
+2. **Archivo de salida (TXT)**:
+   ```txt
+   {"isbn":"0987654321","name":"El Principito","author":"Antoine de Saint-Exupéry","category":"Ficción","price":"15.00","quantity":"5"}
+   ```
+
+## Ejecución local
+
+### Pasos:
+
+1. Clona el repositorio:
+   ```bash
+   git clone https://github.com/danielxiquin/Bookstore.git
+   ```
+
+2. Abre el proyecto en **Visual Studio Code** o tu entorno preferido para **Java**.
+
+3. Asegúrate de tener **Java 11** o superior instalado.
+
+4. Compila y ejecuta el código con los siguientes comandos:
+   ```bash
+   javac Main.java
+   java Main
+   ```
 
 ## Recomendaciones
 
-- Optimizar las búsquedas por nombre implementando un índice secundario.
-- Considerar la implementación de caché para reducir la carga en picos de demanda.
-- Ajustar el tamaño de los nodos del árbol según el entorno de producción para mejorar el rendimiento.
-```
+1. **Mejora en la gestión de nodos llenos**: Actualmente, el método `splitChild` se utiliza cuando un nodo se llena. Sería conveniente implementar un mecanismo que revise el estado del árbol completo periódicamente para evitar que las operaciones de división se acumulen.
 
+2. **Implementar pruebas unitarias**: Es recomendable desarrollar pruebas unitarias que cubran los casos de inserción, eliminación, y búsqueda, para asegurar la robustez del sistema.
+
+3. **Optimización de búsquedas**: Podrías considerar agregar índices adicionales o técnicas de caché para mejorar el rendimiento de las búsquedas en grandes volúmenes de datos.
+
+4. **Manejo de excepciones**: Es recomendable mejorar el manejo de errores y excepciones, especialmente al leer y procesar los archivos CSV, para evitar que errores de formato interrumpan el funcionamiento del sistema.
