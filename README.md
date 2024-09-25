@@ -24,6 +24,26 @@ Este proyecto es una solución de inventario para una librería, desarrollado en
 - **Actualizar libro**: Actualiza los atributos de un libro en función de las instrucciones del archivo CSV.
 - **Buscar libros**: Realiza búsquedas de libros por nombre y genera un archivo `.txt` con los resultados de la búsqueda.
 
+## Estructura del proyecto
+
+La estructura del proyecto está organizada de la siguiente manera:
+
+```
+Bookstore/
+│
+├── src/
+│   ├── Main.java        # Archivo principal que contiene el punto de entrada del programa
+│   ├── BTree.java       # Implementación de la estructura del árbol B
+│   └── BTreeNode.java   # Implementación de los nodos del árbol B
+│
+├── input/
+│   ├── inventory.csv    # Archivo CSV que contiene los libros del inventario
+│   └── search.csv       # Archivo CSV con las búsquedas a realizar
+│
+└── output/
+    └── result.txt       # Archivo de salida que contiene los resultados de las búsquedas
+```
+
 ## Ejemplo de uso
 
 1. **Archivo de entrada (CSV)**:
